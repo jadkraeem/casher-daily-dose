@@ -290,9 +290,46 @@ button { font-family: inherit; cursor: pointer; }
 .stat-box.danger-box h3 { color: #fee2e2; }
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+#login-overlay{position:fixed;inset:0;background:var(--bg-dark);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-box{background:var(--panel-bg);padding:30px;border-radius:20px;border:2px solid var(--gold);width:100%;max-width:360px;display:flex;flex-direction:column;gap:12px;text-align:center}
+.login-box input{padding:12px 16px;border-radius:25px;border:1px solid #374151;background:#111827;color:#fff;font-family:inherit;direction:ltr}
+#login-err{color:var(--danger);font-size:.9rem;min-height:1.2em}
+
+.ai-chat{background:var(--white);border:1px solid #d8cbb8;border-radius:20px;height:48vh;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.ai-msg{max-width:80%;padding:10px 16px;border-radius:18px;line-height:1.7;white-space:pre-wrap}
+.ai-msg.me{align-self:flex-start;background:var(--green);color:#fff}
+.ai-msg.bot{align-self:flex-end;background:var(--beige);color:var(--dark)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.chip{background:var(--white);border:1px solid var(--gold);color:var(--green);border-radius:20px;padding:6px 14px;font-weight:700}
+
+.head-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+.head-row select{padding:8px 16px;border-radius:20px;border:1px solid var(--gold);font-family:inherit;font-weight:bold}
+.panel{background:var(--white);border:1px solid #d8cbb8;border-radius:20px;padding:18px;margin-bottom:20px}
+.panel h3{color:var(--green);margin-bottom:12px}
+.two-col{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px}
+.bars{display:flex;align-items:flex-end;gap:3px;height:190px;direction:ltr}
+.bar-col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:0}
+.bar{width:100%;background:var(--green);border-radius:5px 5px 0 0;min-height:2px}
+.bar-col small{font-size:9px;color:#887b68;margin-top:3px;white-space:nowrap}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th,.tbl td{padding:9px 12px;text-align:right;border-bottom:1px solid #eadfcc}
+.tbl th{background:var(--beige);color:var(--green)}
+.oos{display:inline-block;background:#fee2e2;color:#991b1b;border-radius:20px;padding:3px 12px;margin:3px;font-size:.85rem;font-weight:700}
+@media print{html,body{overflow:visible!important;height:auto!important}.app-wrapper{display:block;height:auto}.sidebar,.control-panel,.head-row select{display:none!important}.main-content{overflow:visible;padding:0}}
 </style>
 </head>
 <body>
+<div id="login-overlay">
+  <div class="login-box">
+    <div class="logo">Daily Dose<small>CAFE & MORE</small></div>
+    <h3 style="color:var(--gold)">تسجيل دخول الإدارة</h3>
+    <input type="email" id="login-email" placeholder="البريد الإلكتروني" autocomplete="off">
+    <input type="password" id="login-pass" placeholder="كلمة المرور" autocomplete="new-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div id="login-err"></div>
+    <button class="save-btn" onclick="doLogin()">دخول</button>
+  </div>
+</div>
 
 <div class="app-wrapper">
     <!-- القائمة الجانبية -->
@@ -306,7 +343,11 @@ button { font-family: inherit; cursor: pointer; }
         <button class="nav-btn" onclick="switchTab('events', this)">📅 إدارة الفعاليات</button>
         <button class="nav-btn" onclick="switchTab('wifi', this)">🛜 تتبع الشبكة (Wi-Fi)</button>
         <button class="nav-btn" onclick="switchTab('reports', this)">📊 التقارير والمبيعات</button>
+        <button class="nav-btn" onclick="switchTab('jard', this)">📦 الجرد (يومي/أسبوعي/شهري)</button>
         <button class="nav-btn" onclick="switchTab('staff', this)">👥 إدارة الموظفين</button>
+        <button class="nav-btn" onclick="switchTab('ai', this)">🤖 المساعد الذكي</button>
+        <button class="nav-btn" id="sound-btn" style="margin-top:auto" onclick="toggleSound()">🔔 الصوت: تشغيل</button>
+        <button class="nav-btn" style="border-color:var(--danger)" onclick="doLogout()">🚪 تسجيل الخروج</button>
     </div>
 
     <!-- المحتوى الرئيسي -->
@@ -424,7 +465,7 @@ button { font-family: inherit; cursor: pointer; }
 
             <div class="control-panel">
                 <div class="input-group">
-                    <label>عنوان الـ IP الخاص براوتر الكافتيريا (في حال تفعيل التتبع):</label>
+                    <label>عنوان الـ IP لراوتر الكافتيريا (يمكن عدة عناوين مفصولة بفاصلة):</label>
                     <input type="text" id="allowed-ip-input" placeholder="مثال: 109.224.242.121">
                 </div>
                 <button class="save-btn" onclick="saveAllowedIP()">حفظ الـ IP فوراً</button>
@@ -434,30 +475,52 @@ button { font-family: inherit; cursor: pointer; }
 
         <!-- 7. التقارير والمبيعات -->
         <div id="reports" class="section">
-            <h2 class="section-title">ملخص المبيعات والأداء</h2>
-            <div class="stats-row">
-                <div class="stat-box highlight">
-                    <span>إجمالي الإيرادات (الكاش)</span>
-                    <h3 id="stat-total-revenue">0</h3>
-                </div>
-                <div class="stat-box">
-                    <span>الطلبات المكتملة (تم البيع)</span>
-                    <h3 id="stat-ready-orders">0</h3>
-                </div>
-                <div class="stat-box">
-                    <span>الطلبات قيد الانتظار</span>
-                    <h3 id="stat-pending-orders">0</h3>
-                </div>
-                <div class="stat-box danger-box">
-                    <span>الطلبات الملغاة</span>
-                    <h3 id="stat-cancelled-orders">0</h3>
-                </div>
-                <div class="stat-box" style="background:var(--beige); color:var(--dark); border-bottom-color:var(--dark);">
-                    <span>إجمالي الطلبات (الكل)</span>
-                    <h3 id="stat-total-orders" style="color:var(--dark);">0</h3>
-                </div>
+            <div class="head-row">
+                <h2 class="section-title" style="margin:0;border:none">📊 التقارير والمبيعات</h2>
+                <select id="rep-range" onchange="loadReports()">
+                    <option value="1">اليوم</option><option value="7" selected>آخر 7 أيام</option>
+                    <option value="30">آخر 30 يوماً</option><option value="90">آخر 90 يوماً</option>
+                </select>
             </div>
-            <button class="save-btn" onclick="loadReports()">🔄 تحديث التقارير الآن</button>
+            <div class="stats-row" id="rep-kpis"></div>
+            <div class="two-col">
+                <div class="panel"><h3>الإيراد اليومي (ل.س)</h3><div class="bars" id="rep-days"></div></div>
+                <div class="panel"><h3>ساعات الذروة (عدد الطلبات)</h3><div class="bars" id="rep-hours"></div></div>
+            </div>
+            <div class="panel" style="overflow-x:auto"><h3>🔥 الأكثر مبيعاً</h3><table class="tbl" id="rep-top"></table></div>
+        </div>
+
+        <!-- الجرد -->
+        <div id="jard" class="section">
+            <h2 class="section-title">📦 الجرد</h2>
+            <div class="control-panel">
+                <div class="input-group"><label>الفترة:</label>
+                    <select id="jard-period" onchange="loadJard()">
+                        <option value="day">يومي</option><option value="week">أسبوعي (سبت – جمعة)</option><option value="month">شهري</option>
+                    </select></div>
+                <div class="input-group"><label>التاريخ:</label><input type="date" id="jard-date" onchange="loadJard()"></div>
+                <button class="save-btn" onclick="exportJardCSV()">⬇️ تصدير Excel (CSV)</button>
+                <button class="save-btn" style="background:var(--beige)" onclick="window.print()">🖨️ طباعة</button>
+            </div>
+            <div class="stats-row" id="jard-summary"></div>
+            <div class="panel" style="overflow-x:auto"><h3>الأصناف المباعة</h3><table class="tbl" id="jard-table"></table></div>
+            <div class="panel"><h3>⚠️ أصناف نفدت من المخزون</h3><div id="jard-oos"></div></div>
+        </div>
+
+        <!-- المساعد الذكي -->
+        <div id="ai" class="section">
+            <h2 class="section-title">🤖 المساعد الذكي للكاشير</h2>
+            <div class="chips">
+                <button class="chip" onclick="askAI('لخّص لي مبيعات اليوم')">📊 ملخص اليوم</button>
+                <button class="chip" onclick="askAI('شو أكتر الأصناف مبيعاً اليوم؟')">🔥 الأكثر مبيعاً</button>
+                <button class="chip" onclick="askAI('في طلبات متأخرة؟')">⏱️ الطلبات المتأخرة</button>
+                <button class="chip" onclick="askAI('اقترح عرض مناسب بناءً على مبيعات اليوم')">💡 اقتراح عرض</button>
+            </div>
+            <div class="ai-chat" id="ai-chat"></div>
+            <div class="control-panel">
+                <div class="input-group"><input type="text" id="ai-input" placeholder="اسأل عن المبيعات أو الطلبات..." onkeydown="if(event.key==='Enter')askAI()"></div>
+                <button class="save-btn" id="ai-send" onclick="askAI()">إرسال</button>
+            </div>
         </div>
 
         <!-- 8. إدارة الموظفين (staff_members) -->
@@ -532,6 +595,7 @@ button { font-family: inherit; cursor: pointer; }
         if(tabId === 'events') loadEvents();
         if(tabId === 'wifi') loadWifiSettings();
         if(tabId === 'reports') loadReports();
+        if(tabId === 'jard') loadJard();
         if(tabId === 'staff') loadStaff();
     };
 
@@ -539,6 +603,8 @@ button { font-family: inherit; cursor: pointer; }
     async function loadOrders() {
         const db = getDB();
         if (!db) { setTimeout(loadOrders, 400); return; }
+        const { data: sess } = await db.auth.getSession();
+        if (!sess.session) return; // لا نجلب الطلبات قبل تسجيل الدخول
 
         const statusFilter = document.getElementById('order-status-filter')?.value || 'pending';
 
@@ -580,10 +646,10 @@ button { font-family: inherit; cursor: pointer; }
                         const itemPrice = parseFloat(item.price) || 0;
                         sumFromItems += itemPrice * qty;
 
-                        let noteHTML = item.note ? `<br><small style="color:#c9a45c; font-weight:bold;">ملاحظة: ${item.note}</small>` : '';
+                        let noteHTML = item.note ? `<br><small style="color:#c9a45c; font-weight:bold;">ملاحظة: ${esc(item.note)}</small>` : '';
                         let priceHTML = itemPrice > 0 ? ` <small style="color:#666;">(${itemPrice * qty} ل.س)</small>` : '';
-                        itemsText += `<div style="margin-bottom: 8px; border-bottom: 1px dashed #eee; padding-bottom: 4px;">🔹 ${item.name} <strong style="color:var(--green);">(الكمية: ${qty})</strong>${priceHTML}${noteHTML}</div>`;
-                        itemsForPrint += `<div>${item.name} x${qty} ${itemPrice > 0 ? '- ' + (itemPrice * qty) + ' ل.س' : ''} ${item.note ? '('+item.note+')' : ''}</div>`;
+                        itemsText += `<div style="margin-bottom: 8px; border-bottom: 1px dashed #eee; padding-bottom: 4px;">🔹 ${esc(item.name)} <strong style="color:var(--green);">(الكمية: ${qty})</strong>${priceHTML}${noteHTML}</div>`;
+                        itemsForPrint += `<div>${esc(item.name)} x${qty} ${itemPrice > 0 ? '- ' + (itemPrice * qty) + ' ل.س' : ''} ${item.note ? '('+item.note+')' : ''}</div>`;
                     });
                     if (calculatedTotal === 0 && sumFromItems > 0) {
                         calculatedTotal = sumFromItems;
@@ -605,7 +671,7 @@ button { font-family: inherit; cursor: pointer; }
                         <div>
                             <div class="card-header">
                                 <span>${tableHeaderLabel}</span>
-                                <span style="color:var(--gold); font-size:0.95rem;">⏰ ${time}</span>
+                                <span style="color:var(--gold); font-size:0.95rem;">⏰ ${time}${statusFilter === 'pending' ? elapsed(order.created_at) : ''}</span>
                             </div>
                             <div class="order-items">${itemsText}</div>
                         </div>
@@ -619,12 +685,14 @@ button { font-family: inherit; cursor: pointer; }
             });
 
             if (!isFirstLoad && hasNewOrder && statusFilter === 'pending') {
-                alertSound.play().catch(() => {});
+                if (soundOn) alertSound.play().catch(() => {});
             }
             isFirstLoad = false;
 
         } catch (err) { 
-            console.error('Error loading orders:', err); 
+            console.error('Error loading orders:', err.message || JSON.stringify(err), err.code || '', err.hint || '');
+            const box = document.getElementById('orders-container');
+            if (box) box.innerHTML = `<h3 style="color:#b91c1c;width:100%;direction:ltr;text-align:left">${esc(err.message || 'خطأ غير معروف')} ${esc(err.code || '')}</h3>`;
         }
     }
 
@@ -694,8 +762,8 @@ button { font-family: inherit; cursor: pointer; }
         if (cats && cats.length > 0) {
             cats.forEach(c => {
                 categoriesMap[c.id] = c.name;
-                selectEl.innerHTML += `<option value="${c.id}">${c.name}</option>`;
-                filterEl.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+                selectEl.innerHTML += `<option value="${c.id}">${esc(c.name)}</option>`;
+                filterEl.innerHTML += `<option value="${c.id}">${esc(c.name)}</option>`;
             });
         }
     }
@@ -730,7 +798,7 @@ button { font-family: inherit; cursor: pointer; }
                 <div class="card">
                     <div>
                         <div class="card-header">
-                            <span>${item.name}</span>
+                            <span>${esc(item.name)}</span>
                             <span class="badge ${isAvail ? 'badge-avail' : 'badge-out'}">${isAvail ? 'متوفر' : 'نفد من المخزون'}</span>
                         </div>
                         <p style="color:#666; margin-bottom:8px;">القسم: <strong>${catName}</strong></p>
@@ -854,7 +922,8 @@ button { font-family: inherit; cursor: pointer; }
         if(!num) return alert('أدخل رقم الطاولة');
         
         const db = getDB();
-        const qrUrl = `https://daily-dose.shamzad.com/?table=${encodeURIComponent(num)}`;
+        const baseUrl = location.origin + location.pathname.replace(/[^/]*$/, ''); // نفس مجلد الموقع (فيه index.html)
+        const qrUrl = `${baseUrl}?table=${encodeURIComponent(num)}`;
         
         const { error } = await db.from('tables').insert([{ 
             table_number: parseInt(num),
@@ -889,7 +958,7 @@ button { font-family: inherit; cursor: pointer; }
                         <span>📢 عرض إعلاني</span>
                         <span class="badge ${p.is_active ? 'badge-avail' : 'badge-out'}">${p.is_active ? 'فعال حالياً' : 'متوقف'}</span>
                     </div>
-                    <p style="font-size:1.1rem; font-weight:bold; margin: 12px 0;">${p.title}</p>
+                    <p style="font-size:1.1rem; font-weight:bold; margin: 12px 0;">${esc(p.title)}</p>
                     <div class="actions-row">
                         <button class="action-btn ${p.is_active ? 'btn-warning' : 'btn-success'}" onclick="togglePromo('${p.id}', ${p.is_active})">
                             ${p.is_active ? 'إيقاف' : 'تفعيل'}
@@ -936,8 +1005,8 @@ button { font-family: inherit; cursor: pointer; }
         events.forEach(ev => {
             container.innerHTML += `
                 <div class="card">
-                    <div class="card-header"><span>📅 ${ev.event_title}</span></div>
-                    <p style="color:#555; margin-bottom:8px;">التفاصيل: <strong>${ev.description || '-'}</strong></p>
+                    <div class="card-header"><span>📅 ${esc(ev.event_title)}</span></div>
+                    <p style="color:#555; margin-bottom:8px;">التفاصيل: <strong>${esc(ev.description || '-')}</strong></p>
                     <p style="color:var(--green); margin-bottom:15px;">التاريخ: <strong>${ev.event_date || '-'}</strong></p>
                     <button class="action-btn btn-danger" onclick="deleteEvent('${ev.id}')">حذف الفعالية 🗑️</button>
                 </div>
@@ -1013,78 +1082,136 @@ button { font-family: inherit; cursor: pointer; }
     };
 
     window.detectCurrentIP = async function() {
-        try {
-            const res = await fetch('https://api.ipify.org?format=json');
-            const data = await res.json();
-            document.getElementById('allowed-ip-input').value = data.ip;
-            alert('تم جلب الـ IP الحالي: ' + data.ip + '\nاضغط "حفظ الـ IP فوراً" لاعتماده.');
-        } catch (e) { alert('تعذر جلب الـ IP تلقائياً'); }
+        const { data, error } = await getDB().rpc('my_ip');
+        if (error || !data) return alert('تعذر جلب الـ IP. شغّل ملف 3-wifi-fix.sql بـ Supabase أولاً.\n' + (error ? error.message : ''));
+        document.getElementById('allowed-ip-input').value = data;
+        alert('الـ IP كما يراه السيرفر: ' + data + '\nتأكد أنك متصل بواي فاي الكافيه الآن، ثم اضغط "حفظ الـ IP فوراً".');
     };
 
     /* ================= 7. التقارير والإحصائيات الشاملة ================= */
-    async function loadReports() {
-        const db = getDB();
-        // جلب جميع أعمدة الطلبات لتفادي أي خطأ في حال عدم وجود عمود معين، مع جلب المنتجات لحساب أسعار الطلبات القديمة
-        const [{ data: orders, error }, { data: productsData }] = await Promise.all([
-            db.from('orders').select('*').eq('restaurant_id', restaurantId),
-            db.from('products').select('name, price').eq('restaurant_id', restaurantId)
-        ]);
+    /* ====== أدوات التقارير والجرد ====== */
+    const SOLD = ['ready', 'delivered'];
+    const fmt = n => Number(n || 0).toLocaleString('en-US');
+    const dkey = d => d.toLocaleDateString('en-CA');
+    const statBox = (t, v, cls = '') => `<div class="stat-box ${cls}"><span>${t}</span><h3>${v}</h3></div>`;
+    let priceMap = null, jardRows = [];
 
-        if (error || !orders) return;
-
-        // خريطة أسعار المنتجات لحساب إيرادات الطلبات القديمة التي لم يُحفظ فيها السعر داخل العنصر
-        const productPriceLookup = {};
-        if (productsData && Array.isArray(productsData)) {
-            productsData.forEach(p => {
-                const pPrice = parseFloat(p.price) || 0;
-                const full = (p.name || '').trim();
-                productPriceLookup[full] = pPrice;
-                if (full.includes('/')) {
-                    const parts = full.split('/');
-                    productPriceLookup[parts[0].trim()] = pPrice;
-                    productPriceLookup[parts.slice(1).join('/').trim()] = pPrice;
-                }
-            });
-        }
-
-        let totalOrdersCount = orders.length;
-        let pendingCount = 0;
-        let readyCount = 0;
-        let cancelledCount = 0;
-        let totalRevenue = 0;
-
-        orders.forEach(o => {
-            if (o.status === 'pending') {
-                pendingCount++;
-            } else if (o.status === 'ready') {
-                readyCount++;
-                
-                // حساب الأرباح بناءً على أسعار المنتجات المكتملة
-                let orderPrice = parseFloat(o.total_price) || 0;
-                
-                // إذا لم يكن هناك total_price صريح، نحسبه من العناصر أو من جدول المنتجات
-                if (orderPrice === 0 && o.items && Array.isArray(o.items)) {
-                    orderPrice = o.items.reduce((sum, item) => {
-                        const unitPrice = parseFloat(item.price) || productPriceLookup[(item.name || '').trim()] || 0;
-                        const qty = parseInt(item.qty) || 1;
-                        return sum + (unitPrice * qty);
-                    }, 0);
-                }
-                
-                totalRevenue += orderPrice;
-
-            } else if (o.status === 'cancelled') {
-                cancelledCount++;
-            }
+    async function ensurePrices() {
+        if (priceMap) return; priceMap = {};
+        const { data } = await getDB().from('products').select('name, price').eq('restaurant_id', restaurantId);
+        (data || []).forEach(p => {
+            const pr = parseFloat(p.price) || 0, n = (p.name || '').trim();
+            priceMap[n] = pr;
+            if (n.includes('/')) { const ps = n.split('/'); priceMap[ps[0].trim()] = pr; priceMap[ps.slice(1).join('/').trim()] = pr; }
         });
+    }
+    const itemPrice = i => parseFloat(i.price) || (priceMap && priceMap[(i.name || '').trim()]) || 0;
+    const orderTotal = o => parseFloat(o.total_price) || (Array.isArray(o.items) ? o.items.reduce((s, i) => s + itemPrice(i) * (parseInt(i.qty) || 1), 0) : 0);
 
-        document.getElementById('stat-total-orders').textContent = totalOrdersCount;
-        document.getElementById('stat-pending-orders').textContent = pendingCount;
-        document.getElementById('stat-ready-orders').textContent = readyCount;
-        document.getElementById('stat-cancelled-orders').textContent = cancelledCount;
-        
-        // عرض الإيرادات مع فاصلة الآلاف ورمز العملة
-        document.getElementById('stat-total-revenue').textContent = totalRevenue.toLocaleString('en-US') + ' ل.س';
+    async function fetchOrders(from, to) {
+        await ensurePrices();
+        let all = [], start = 0;
+        while (true) {
+            const { data, error } = await getDB().from('orders').select('*').eq('restaurant_id', restaurantId)
+                .gte('created_at', from.toISOString()).lt('created_at', to.toISOString()).order('created_at').range(start, start + 999);
+            if (error) { alert('خطأ: ' + error.message); break; }
+            all = all.concat(data || []);
+            if (!data || data.length < 1000) break;
+            start += 1000;
+        }
+        return all;
+    }
+
+    function aggregate(orders) {
+        const a = { revenue: 0, sold: 0, pending: 0, cancelled: 0, items: {}, days: {}, hours: Array(24).fill(0) };
+        orders.forEach(o => {
+            const d = new Date(o.created_at);
+            if (SOLD.includes(o.status)) {
+                const t = orderTotal(o); a.sold++; a.revenue += t;
+                a.days[dkey(d)] = (a.days[dkey(d)] || 0) + t; a.hours[d.getHours()]++;
+                (o.items || []).forEach(i => {
+                    const q = parseInt(i.qty) || 1, e = a.items[i.name] || (a.items[i.name] = { qty: 0, rev: 0 });
+                    e.qty += q; e.rev += itemPrice(i) * q;
+                });
+            } else if (o.status === 'pending') a.pending++;
+            else if (o.status === 'cancelled') a.cancelled++;
+        });
+        return a;
+    }
+
+    function barChart(id, labels, values) {
+        const max = Math.max(...values, 1);
+        document.getElementById(id).innerHTML = labels.map((l, i) =>
+            `<div class="bar-col" title="${esc(l)}: ${fmt(values[i])}"><div class="bar" style="height:${(values[i] / max) * 100}%"></div><small>${esc(l)}</small></div>`).join('');
+    }
+
+    function itemsTable(id, a, limit) {
+        const rows = Object.entries(a.items).sort((x, y) => y[1].qty - x[1].qty).slice(0, limit);
+        const totalRev = a.revenue || 1;
+        jardRows = rows;
+        document.getElementById(id).innerHTML = rows.length
+            ? `<tr><th>#</th><th>الصنف</th><th>الكمية</th><th>الإيراد (ل.س)</th><th>النسبة</th></tr>` +
+              rows.map(([n, e], i) => `<tr><td>${i + 1}</td><td>${esc(n)}</td><td><strong>${e.qty}</strong></td><td>${fmt(e.rev)}</td><td>${Math.round(e.rev / totalRev * 100)}%</td></tr>`).join('')
+            : '<tr><td>لا توجد مبيعات بهذه الفترة.</td></tr>';
+    }
+
+    async function loadReports() {
+        const days = parseInt(document.getElementById('rep-range').value) || 7;
+        const to = new Date(); to.setHours(24, 0, 0, 0);
+        const from = new Date(to); from.setDate(from.getDate() - days);
+        const orders = await fetchOrders(from, to), a = aggregate(orders);
+        const total = orders.length, avg = a.sold ? a.revenue / a.sold : 0, cr = total ? Math.round(a.cancelled / total * 100) : 0;
+        document.getElementById('rep-kpis').innerHTML =
+            statBox('إجمالي الإيرادات', fmt(a.revenue) + ' ل.س', 'highlight') + statBox('طلبات مباعة', a.sold) +
+            statBox('متوسط الفاتورة', fmt(Math.round(avg)) + ' ل.س') + statBox('قيد الانتظار', a.pending) +
+            statBox('ملغاة (' + cr + '%)', a.cancelled, 'danger-box') + statBox('كل الطلبات', total);
+        const labels = [], vals = [];
+        for (let d = new Date(from); d < to; d.setDate(d.getDate() + 1)) { const k = dkey(d); labels.push(k.slice(5)); vals.push(a.days[k] || 0); }
+        barChart('rep-days', labels, vals);
+        barChart('rep-hours', a.hours.map((_, h) => h), a.hours);
+        itemsTable('rep-top', a, 10);
+    }
+
+    function periodRange(p, dateStr) {
+        const d = dateStr ? new Date(dateStr + 'T00:00:00') : new Date(); d.setHours(0, 0, 0, 0);
+        let from = new Date(d), to = new Date(d);
+        if (p === 'day') to.setDate(to.getDate() + 1);
+        else if (p === 'week') { from.setDate(d.getDate() - ((d.getDay() + 1) % 7)); to = new Date(from); to.setDate(to.getDate() + 7); }
+        else { from = new Date(d.getFullYear(), d.getMonth(), 1); to = new Date(d.getFullYear(), d.getMonth() + 1, 1); }
+        return { from, to };
+    }
+
+    async function loadJard() {
+        const di = document.getElementById('jard-date'); if (!di.value) di.value = dkey(new Date());
+        const { from, to } = periodRange(document.getElementById('jard-period').value, di.value);
+        const last = new Date(to); last.setDate(last.getDate() - 1);
+        const a = aggregate(await fetchOrders(from, to));
+        const units = Object.values(a.items).reduce((s, e) => s + e.qty, 0);
+        document.getElementById('jard-summary').innerHTML =
+            statBox('الفترة', `<span style="font-size:1rem">${dkey(from)} → ${dkey(last)}</span>`) +
+            statBox('الإيرادات', fmt(a.revenue) + ' ل.س', 'highlight') + statBox('طلبات مباعة', a.sold) +
+            statBox('وحدات مباعة', units) + statBox('ملغاة', a.cancelled, 'danger-box');
+        itemsTable('jard-table', a, Infinity);
+        const { data: oos } = await getDB().from('products').select('name').eq('restaurant_id', restaurantId).eq('is_available', false);
+        document.getElementById('jard-oos').innerHTML = (oos && oos.length) ? oos.map(p => `<span class="oos">${esc(p.name)}</span>`).join('') : '<span style="color:#887b68">كل الأصناف متوفرة ✓</span>';
+    }
+
+    window.exportJardCSV = function() {
+        if (!jardRows.length) return alert('لا توجد بيانات للتصدير');
+        const csv = '\ufeff' + 'الصنف,الكمية,الإيراد\n' + jardRows.map(([n, e]) => `"${n.replace(/"/g, '""')}",${e.qty},${e.rev}`).join('\n');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+        a.download = 'inventory-' + document.getElementById('jard-date').value + '.csv'; a.click();
+    };
+
+    /* ====== إضافات: الصوت + مؤقت الطلب ====== */
+    let soundOn = localStorage.getItem('sound') !== 'off';
+    function refreshSoundBtn() { document.getElementById('sound-btn').textContent = soundOn ? '🔔 الصوت: تشغيل' : '🔕 الصوت: إيقاف'; }
+    window.toggleSound = function() { soundOn = !soundOn; localStorage.setItem('sound', soundOn ? 'on' : 'off'); refreshSoundBtn(); };
+    window.addEventListener('DOMContentLoaded', refreshSoundBtn);
+    function elapsed(iso) {
+        const m = Math.max(0, Math.floor((Date.now() - new Date(iso)) / 60000));
+        return ` <b style="color:${m > 10 ? '#ef4444' : '#10b981'}">(${m} د)</b>`;
     }
 
     /* ================= 8. إدارة الموظفين ================= */
@@ -1099,7 +1226,7 @@ button { font-family: inherit; cursor: pointer; }
         staff.forEach(s => {
             container.innerHTML += `
                 <div class="card">
-                    <div class="card-header"><span>👤 ${s.name}</span><span class="badge badge-avail">${s.role}</span></div>
+                    <div class="card-header"><span>👤 ${esc(s.name)}</span><span class="badge badge-avail">${esc(s.role)}</span></div>
                     <p style="margin:10px 0;">رمز الدخول (PIN): <strong>${s.pin_code || s.pin || 'غير محدد'}</strong></p>
                     <button class="action-btn btn-danger" onclick="deleteStaff('${s.id}')">حذف الموظف 🗑️</button>
                 </div>
@@ -1140,6 +1267,66 @@ button { font-family: inherit; cursor: pointer; }
           })
           .subscribe();
     }
+
+    function esc(s) {
+        return String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    }
+    const AI_URL = 'https://delicate-unit-5ea6.dailydosecafe.workers.dev'; // غيّره برابط الـ Worker بعد النشر
+    let aiHistory = [];
+    function aiBubble(text, who) {
+        const d = document.createElement('div');
+        d.className = 'ai-msg ' + who; d.textContent = text;
+        const box = document.getElementById('ai-chat');
+        box.appendChild(d); box.scrollTop = box.scrollHeight; return d;
+    }
+    window.askAI = async function(preset) {
+        const inp = document.getElementById('ai-input');
+        const q = (typeof preset === 'string' ? preset : inp.value).trim();
+        if (!q) return;
+        inp.value = '';
+        aiBubble(q, 'me');
+        const wait = aiBubble('...', 'bot');
+        const btn = document.getElementById('ai-send'); btn.disabled = true;
+        try {
+            const { data } = await getDB().auth.getSession();
+            const res = await fetch(AI_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (data.session?.access_token || '') },
+                body: JSON.stringify({ question: q, role: 'cashier', history: aiHistory })
+            });
+            const j = await res.json();
+            wait.textContent = j.answer || 'حدث خطأ.';
+            aiHistory.push({ role: 'user', content: q }, { role: 'assistant', content: wait.textContent });
+            aiHistory = aiHistory.slice(-8);
+        } catch (e) { wait.textContent = 'تعذر الاتصال بالمساعد.'; }
+        btn.disabled = false;
+    };
+
+    let loginTries = 0;
+    async function requireLogin() {
+        const db = getDB();
+        if (!db) {
+            if (++loginTries > 10) {
+                document.getElementById('login-err').textContent = 'تعذر تحميل مكتبة Supabase. افتح الصفحة بمتصفح عادي (Chrome) وليس متصفح VS Code الداخلي، أو عبر Live Server.';
+            } else setTimeout(requireLogin, 300);
+            return;
+        }
+        const { data } = await db.auth.getSession();
+        document.getElementById('login-overlay').style.display = data.session ? 'none' : 'flex';
+        if (data.session) loadOrders();
+    }
+    window.doLogin = async function() {
+        const emailSent = document.getElementById('login-email').value.replace(/[\s\u200b-\u200f\u202a-\u202e]/g, '').toLowerCase();
+        const passSent = document.getElementById('login-pass').value.trim();
+        const { error } = await getDB().auth.signInWithPassword({ email: emailSent, password: passSent });
+        document.getElementById('login-err').textContent = error
+            ? ('خطأ: ' + error.message + ' | البريد المُرسل: [' + emailSent + '] | طول الكلمة: ' + passSent.length)
+            : '';
+        if (error) console.error('Login error:', error.message, error.status, error.code);
+        if (!error) { document.getElementById('login-pass').value = ''; requireLogin(); }
+    };
+    window.doLogout = async function() { await getDB().auth.signOut(); requireLogin(); };
+    window.addEventListener('DOMContentLoaded', requireLogin);
 
     window.addEventListener('DOMContentLoaded', () => {
         loadOrders();
